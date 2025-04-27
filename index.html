@@ -1,0 +1,149 @@
+<html>
+	<head>
+		<title>Dough</title>
+	</head>
+	<body>
+		<style>
+			label {
+				display: block;
+			}
+
+		</style>
+		<form name="recipies"></form>
+
+		<script>
+			(async function() {
+				const result = await fetch("./dough.md").then(response => response.text());
+				const [head, _, ...rest] = result.split("\n");
+				const columns = head.split("|");
+
+				function parseRecipe([current, ...rest]) {
+					if (current === "") {
+						return []
+					}
+					const [currentRecipeName, ...ingredients] = current.split("|")
+					return [{
+						name: currentRecipeName.trim(),
+						ingredients: Object.fromEntries(ingredients.map((ingredient, index) => [columns[index + 1].trim(), ingredient.trim()]))
+					}, ...rest.length > 0 ? parseRecipe(rest) : []]
+
+				}
+
+				function createDetail(title) {
+					const element = document.createElement("fieldset");
+					document.recipies.append(element);
+					const summary = document.createElement("legend");
+					summary.textContent = title;
+					element.append(summary);
+
+					return element
+				}
+
+				function createInput(parent, labelText) {
+					const label = document.createElement("label");
+					const input = document.createElement("input");
+					label.append(input);
+					label.append(document.createTextNode(labelText));
+					parent.append(label);
+					return input;
+				}
+
+				function round(value) {
+					return Math.round(value * 100) / 100;
+				}
+
+
+				const recipies = parseRecipe(rest)
+				const recipiesElement = createDetail("Recepies");
+				const amountsElement = createDetail("Amount");
+				const ingredientsElement = createDetail("Ingredients");
+
+				recipies.forEach(recipie => {
+					const recipieElement = createInput(recipiesElement, recipie.name);
+					recipieElement.type = "radio"
+					recipieElement.name = "recipie"
+					recipieElement.value = recipie.name
+					recipieElement.oninput = updateIngredients
+				})
+
+				function* partitioner() {
+					function* partitioner(depth) {
+						for(let index = -1; index < depth; index++) {
+							yield Array.from({length: depth}).map((_, currentIndex) => currentIndex <= index ? 3 : 2)
+						}
+						yield* partitioner(depth +1);
+
+					}
+
+					yield [1]
+
+					const previousResults = new Set()
+
+					yield* partitioner(1).filter((value) => {
+						const sum = value.reduce((acc, value) => acc + value, 0);
+						if (previousResults.has(sum)) {
+							return false
+						}
+						previousResults.add(sum)
+						return true
+					});
+				}
+
+
+				for(const result of partitioner()) {
+					const sum = result.reduce((acc, value) => acc + value, 0)
+					const amountElement = createInput(amountsElement, `${sum} = ${result.join(", ")}`);
+					amountElement.type = "radio"
+					amountElement.name = "amount"
+					amountElement.value = sum
+					amountElement.oninput = updateIngredients
+					if(sum >= 30) {
+						break
+					}
+				}
+
+				function updateIngredients() {
+					while (ingredientsElement.lastChild) {
+						if(ingredientsElement.lastChild.tagName === "LABEL") {
+							ingredientsElement.removeChild(ingredientsElement.lastChild);
+						} else {
+							break;
+						}
+					}
+
+					const recipieName = document.recipies.recipie.value;
+					const amountText = document.recipies.amount.value;
+					if (recipieName && amountText) {
+						const amount = Number(amountText);
+						const ingredients = recipies.find(recipie => recipie.name === recipieName).ingredients;
+						const weightRegex = /(?<weight>\d+)(?<unit>gr)/
+						const percentageRegex = /(?<percentage>\d+(\.d+)?)%/
+						const floorWeight = Object.values(ingredients).reduce((accumulator, current) => {
+							const result = current.match(weightRegex);
+							return result === null ? accumulator : accumulator + Number(result.groups.weight)
+
+						}, 0);
+
+						for(const [name, value] of [["yiest", "3%"], ...Object.entries(ingredients)]) {
+							if(value) {
+								let label = value;
+								const weightResult = value.match(weightRegex)
+								const percentageResult = value.match(percentageRegex)
+								if (weightResult !== null) {
+									label = `${Number(weightResult.groups.weight) * amount}${weightResult.groups.unit}`
+								} else if (percentageResult !== null) {
+									label = `${round(Number(percentageResult.groups.percentage) / 100 * floorWeight * amount)}gr`
+								}
+								const input = createInput(ingredientsElement, `${name}\t${label}`)
+								input.type = "checkbox"
+								input.name = name
+								input.name = label
+							}
+						}
+					}
+				}
+			})()
+		</script>
+
+	</body>
+</html>
