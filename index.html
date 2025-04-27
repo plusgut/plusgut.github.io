@@ -66,6 +66,11 @@
 					recipieElement.oninput = updateIngredients
 				})
 
+
+				function getTotal(values) {
+					return values.reduce((acc, value) => acc * value, 1);
+				}
+
 				function* partitioner() {
 					function* partitioner(depth) {
 						for(let index = -1; index < depth; index++) {
@@ -80,7 +85,7 @@
 					const previousResults = new Set()
 
 					yield* partitioner(1).filter((value) => {
-						const sum = value.reduce((acc, value) => acc * value, 1);
+						const sum = getTotal(value);
 						if (previousResults.has(sum)) {
 							return false
 						}
@@ -91,7 +96,7 @@
 
 
 				for(const result of partitioner()) {
-					const sum = result.reduce((acc, value) => acc * value, 1
+					const sum = getTotal(result);
 					const amountElement = createInput(amountsElement, `${sum} = ${result.join(", ")}`);
 					amountElement.type = "radio"
 					amountElement.name = "amount"
