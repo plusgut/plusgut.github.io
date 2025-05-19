@@ -137,7 +137,6 @@
 							if (weightResult !== null) {
 								label = `${Number(weightResult.groups.weight) * amount}${weightResult.groups.unit}`
 							} else if (percentageResult !== null) {
-								debugger
 								label = `${round(Number(percentageResult.groups.percentage) / 100 * floorWeight * amount)}gr`
 							}
 							const input = createInput(ingredientsElement, `${name}\t${label}`)
