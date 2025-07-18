@@ -33,11 +33,11 @@
 			function createDetail(title) {
 				const element = document.createElement("fieldset");
 				document.recipies.append(element);
-				const summary = document.createElement("legend");
-				summary.textContent = title;
-				element.append(summary);
+				const legend = document.createElement("legend");
+				legend.textContent = title;
+				element.append(legend);
 
-				return element
+				return [element, legend]
 			}
 
 			function createInput(parent, labelText) {
@@ -55,9 +55,9 @@
 
 
 			const recipies = parseRecipe(rest)
-			const recipiesElement = createDetail("Recepies");
-			const amountsElement = createDetail("Amount");
-			const ingredientsElement = createDetail("Ingredients");
+			const [recipiesElement]= createDetail("Recepies");
+			const [amountsElement] = createDetail("Amount");
+			const [ingredientsElement, ingredientsLegend] = createDetail("Ingredients");
 
 			recipies.forEach(recipie => {
 				const recipieElement = createInput(recipiesElement, recipie.name);
@@ -72,40 +72,11 @@
 				return values.reduce((acc, value) => acc * value, 1);
 			}
 
-			function* partitioner() {
-				function* partitioner(depth) {
-					for (let index = -1; index < depth; index++) {
-						yield Array.from({ length: depth }).map((_, currentIndex) => currentIndex <= index ? 3 : 2)
-					}
-					yield* partitioner(depth + 1);
-				}
-
-				yield [1]
-
-				const previousResults = new Set()
-
-				yield* partitioner(1).filter((value) => {
-					const sum = getTotal(value);
-					if (previousResults.has(sum)) {
-						return false
-					}
-					previousResults.add(sum)
-					return true
-				});
-			}
-
-
-			for (const result of partitioner()) {
-				const sum = getTotal(result);
-				const amountElement = createInput(amountsElement, `${sum} = ${result.join(", ")}`);
-				amountElement.type = "radio"
-				amountElement.name = "amount"
-				amountElement.value = sum
-				amountElement.oninput = updateIngredients
-				if (sum >= 30) {
-					break
-				}
-			}
+			const amountElement = createInput(amountsElement, "")
+			amountElement.type = "number"
+			amountElement.name = "amount"
+			amountElement.oninput = updateIngredients
+			amountElement.value = "1"
 
 			function updateIngredients() {
 				while (ingredientsElement.lastChild) {
@@ -129,15 +100,20 @@
 
 					}, 0);
 
+					let weight = 0;
+
 					for (const [name, value] of [["yiest", "3%"], ...Object.entries(ingredients)]) {
 						if (value) {
 							let label = value;
 							const weightResult = value.match(weightRegex)
 							const percentageResult = value.match(percentageRegex)
 							if (weightResult !== null) {
+								weight += Number(weightResult.groups.weight);
 								label = `${Number(weightResult.groups.weight) * amount}${weightResult.groups.unit}`
 							} else if (percentageResult !== null) {
-								label = `${round(Number(percentageResult.groups.percentage) / 100 * floorWeight * amount)}gr`
+								const currentWeight = round(Number(percentageResult.groups.percentage) / 100 * floorWeight)
+								weight += currentWeight;
+								label = `${currentWeight * amount}gr`
 							}
 							const input = createInput(ingredientsElement, `${name}\t${label}`)
 							input.type = "checkbox"
@@ -145,6 +121,7 @@
 							input.name = label
 						}
 					}
+					ingredientsLegend.textContent = `Ingredients (${weight}gr)`;
 				}
 			}
 		})()
